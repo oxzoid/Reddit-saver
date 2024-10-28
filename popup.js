@@ -82,6 +82,7 @@ function getPostData() {
   const title = titleElement ? titleElement.innerText : 'No Title Found';
   // const content = contentElement ? contentElement.innerText : 'No Content Found';
   const link = window.location.href;
-
-  return { title, link };
+  if(link.includes("reddit.com")){
+  return { title, link };}
+  
 }
