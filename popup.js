@@ -41,7 +41,11 @@ function displayNotes() {
       const noteContentDiv = document.createElement('div');
       noteContentDiv.className = 'noteContent';
       noteContentDiv.innerHTML = `
+        <div>
         <strong>${note.title}</strong>
+        </div>
+        <br>
+        <a href="${note.link}" target="_blank">Go to Post</a>
       `;
 
       // Make note clickable to open in new window
