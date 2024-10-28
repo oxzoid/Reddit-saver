@@ -3,7 +3,7 @@
     "name": "Reddit Saver",
     "version": "1.0",
     "description": "Save Reddit posts like sticky notes.",
-    "permissions": ["storage", "activeTab", "scripting"],
+    "permissions": ["storage", "activeTab", "scripting","windows"],
     "host_permissions": ["*://www.reddit.com/*"],
     "action": {
       "default_popup": "popup.html",
