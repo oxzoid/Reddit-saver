@@ -36,13 +36,17 @@ function displayNotes(filteredNotes = null, query = '') {
   notesToDisplay.forEach((note) => {
     const noteDiv = document.createElement('div');
     noteDiv.className = 'note';
-
+    function escapeRegExp(string) {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escape special characters
+    }
+    
     // Highlight matching text
-    const highlightText = (text) => {
-      if (!query) return text;
-      const regex = new RegExp(`(${query})`, 'gi');
-      return text.replace(regex, '<mark>$1</mark>');
-    };
+    // Highlight matching text
+const highlightText = (text) => {
+  if (!query) return text;
+  const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
+  return text.replace(regex, '<mark>$1</mark>');
+};
 
     // Note content container
     const noteContentDiv = document.createElement('div');
