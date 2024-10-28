@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    /* Existing styles */
+    body {
+      font-family: Arial, sans-serif;
+      width: 300px;
+      margin: 0;
+      padding: 10px;
+    }
+    #saveButton {
+      display: block;
+      margin-bottom: 10px;
+    }
+    .note {
+      border: 1px solid #ccc;
+      padding: 5px;
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+    }
+    .noteContent {
+      flex: 1;
+    }
+    .deleteButton {
+      background-color: transparent;
+      border: none;
+      color: #ff4d4d;
+      font-size: 24px;
+      cursor: pointer;
+      margin-left: 5px;
+    }
+  </style>
+</head>
+<body>
+  <button id="saveButton">Save Reddit Post</button>
+  <div id="notes"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
