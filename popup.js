@@ -12,6 +12,86 @@ function highlightText(text, query = '') {
   return text.replace(regex, '<mark>$1</mark>');
 }
 
+// **Wrap event listener attachments inside DOMContentLoaded**
+document.addEventListener('DOMContentLoaded', () => {
+
+  // Event listener for saveButton
+  document.getElementById('saveButton').addEventListener('click', () => {
+    // Send a message to the content script to get the post data
+    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+      try {
+        const results = await chrome.scripting.executeScript({
+          target: { tabId: tabs[0].id },
+          func: getPostData,
+        });
+        if (results && results[0] && results[0].result) {
+          saveNote(results[0].result);
+        } else {
+          alert('Failed to retrieve post data.');
+        }
+      } catch (error) {
+        console.error('Error executing script:', error);
+      }
+    });
+  });
+
+  // Event listener for deleteAllButton
+  document.getElementById('deleteAllButton').addEventListener('click', () => {
+    // Show the custom confirmation modal
+    document.getElementById('confirmationModal').style.display = 'block';
+  });
+
+  // Event listener for the confirm delete button
+  document.getElementById('confirmDeleteButton').addEventListener('click', async () => {
+    try {
+      // Clear all notes
+      allNotes = [];
+      await chrome.storage.local.set({ notes: allNotes });
+      console.log("All notes have been deleted.");
+
+      // Verify storage after deletion
+      let data = await chrome.storage.local.get('notes');
+      console.log("Notes in storage after deletion:", data.notes);
+
+      displayNotes();
+      // Hide the modal
+      document.getElementById('confirmationModal').style.display = 'none';
+    } catch (error) {
+      console.error('Error deleting all notes:', error);
+    }
+  });
+
+  // Event listener for the cancel delete button
+  document.getElementById('cancelDeleteButton').addEventListener('click', () => {
+    // Hide the modal
+    document.getElementById('confirmationModal').style.display = 'none';
+  });
+
+  // Search Input Event Listener
+  document.getElementById('searchInput').addEventListener('input', debounce(handleSearchInput, 300));
+
+  // Load notes when popup opens
+  loadNotes();
+});
+
+// Debounce function to limit search input processing
+function debounce(func, delay) {
+  let timeout;
+  return function (...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), delay);
+  };
+}
+
+// Handle search input
+function handleSearchInput() {
+  const query = document.getElementById('searchInput').value.toLowerCase();
+  const filteredNotes = allNotes.filter((note) => {
+    return note.title.toLowerCase().includes(query) || note.content.toLowerCase().includes(query);
+  });
+  displayNotes(filteredNotes, query);
+}
+
 // Function to save note to Chrome storage
 async function saveNote(note) {
   try {
@@ -106,83 +186,6 @@ async function loadNotes() {
   }
 }
 
-// Event listener for saveButton
-document.getElementById('saveButton').addEventListener('click', () => {
-  // Send a message to the content script to get the post data
-  chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
-    try {
-      const results = await chrome.scripting.executeScript({
-        target: { tabId: tabs[0].id },
-        func: getPostData,
-      });
-      if (results && results[0] && results[0].result) {
-        saveNote(results[0].result);
-      } else {
-        alert('Failed to retrieve post data.');
-      }
-    } catch (error) {
-      console.error('Error executing script:', error);
-    }
-  });
-});
-
-// Event listener for deleteAllButton
-document.getElementById('deleteAllButton').addEventListener('click', () => {
-  // Show the custom confirmation modal
-  document.getElementById('confirmationModal').style.display = 'block';
-});
-
-// Event listener for the confirm delete button
-// Event listener for the confirm delete button
-document.getElementById('confirmDeleteButton').addEventListener('click', async () => {
-  try {
-    // Clear all notes
-    allNotes = [];
-    await chrome.storage.local.set({ notes: allNotes });
-    console.log("All notes have been deleted.");
-
-    // Verify storage after deletion
-    let data = await chrome.storage.local.get('notes');
-    console.log("Notes in storage after deletion:", data.notes);
-
-    displayNotes();
-    // Hide the modal
-    document.getElementById('confirmationModal').style.display = 'none';
-  } catch (error) {
-    console.error('Error deleting all notes:', error);
-  }
-});
-
-// Event listener for the cancel delete button
-document.getElementById('cancelDeleteButton').addEventListener('click', () => {
-  // Hide the modal
-  document.getElementById('confirmationModal').style.display = 'none';
-});
-
-// Search Input Event Listener
-document.getElementById('searchInput').addEventListener('input', debounce(handleSearchInput, 300));
-
-// Load notes when popup opens
-document.addEventListener('DOMContentLoaded', loadNotes);
-
-// Debounce function to limit search input processing
-function debounce(func, delay) {
-  let timeout;
-  return function (...args) {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func.apply(this, args), delay);
-  };
-}
-
-// Handle search input
-function handleSearchInput() {
-  const query = document.getElementById('searchInput').value.toLowerCase();
-  const filteredNotes = allNotes.filter((note) => {
-    return note.title.toLowerCase().includes(query) || note.content.toLowerCase().includes(query);
-  });
-  displayNotes(filteredNotes, query);
-}
-
 // Function to delete a note by unique ID
 async function deleteNoteById(noteId) {
   try {
@@ -196,11 +199,8 @@ async function deleteNoteById(noteId) {
 
 // Function to open note in new window (like Sticky Notes)
 function openNoteInWindow(note) {
-  const url =
-    chrome.runtime.getURL('note.html') +
-    `?title=${encodeURIComponent(note.title)}&content=${encodeURIComponent(
-      note.content
-    )}&link=${encodeURIComponent(note.link)}&id=${note.id}`;
+  const url = chrome.runtime.getURL('note.html') +
+    `?title=${encodeURIComponent(note.title)}&content=${encodeURIComponent(note.content)}&link=${encodeURIComponent(note.link)}&id=${note.id}`;
 
   chrome.windows.create({
     url: url,
@@ -210,13 +210,14 @@ function openNoteInWindow(note) {
   });
 }
 
+
 // Content script function to get post data from Reddit
 function getPostData() {
   const titleElement = document.querySelector('h1');
-  const contentElement = document.querySelector('[slot ="text-body"]');
+  const contentElement = document.querySelector('[slot="text-body"]');
 
   const title = titleElement ? titleElement.innerText : 'No Title Found';
-  const content = contentElement ? contentElement.innerText : 'No Content Found';
+  const content = contentElement ? contentElement.innerHTML : 'No Content Found';
   const link = window.location.href;
 
   if (link.includes('reddit.com')) {

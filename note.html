@@ -1,33 +1,28 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Note Detail</title>
+  <title>Note</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      width: 400px;
-      padding: 20px;
+      margin: 0;
+      padding: 10px;
+      background-color: #252526;
+      color: #f0ebe3;
     }
-    input, textarea {
-      width: 100%;
-      box-sizing: border-box;
-      margin-bottom: 10px;
+    a {
+      color: #5da6ff;
     }
-    textarea {
-      height: 200px;
-    }
-    button {
-      padding: 10px 15px;
+    #noteContent a {
+      color: #5da6ff;
     }
   </style>
 </head>
 <body>
-  <input type="text" id="noteTitle" />
-  <textarea id="noteContent"></textarea>
-  <a id="noteLink" href="#" target="_blank">Go to Original Post</a>
-  <br /><br />
-  <button id="saveButton">Save Changes</button>
-
+  <h1 id="noteTitle"></h1>
+  <div id="noteContent"></div>
+  <p><a id="originalLink" href="#" target="_blank">Go to Original Post</a></p>
+  <!-- Reference the external script -->
   <script src="note.js"></script>
 </body>
 </html>
