@@ -61,13 +61,4 @@ document.getElementById('exportButton').addEventListener('click', () => {
     }
   });
   
-  // Delete All Notes Functionality
-  document.getElementById('deleteAllButton').addEventListener('click', () => {
-    if (confirm("Are you sure you want to delete all notes? This action cannot be undone.")) {
-      chrome.storage.local.set({ notes: [] }, () => {
-        console.log("All notes have been deleted.");
-        alert("All notes deleted successfully!");
-      });
-    }
-  });
   
