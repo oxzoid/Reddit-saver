@@ -213,7 +213,7 @@ function openNoteInWindow(note) {
 // Content script function to get post data from Reddit
 function getPostData() {
   const titleElement = document.querySelector('h1');
-  const contentElement = document.querySelector('[data-test-id="post-content"]');
+  const contentElement = document.querySelector('[slot ="text-body"]');
 
   const title = titleElement ? titleElement.innerText : 'No Title Found';
   const content = contentElement ? contentElement.innerText : 'No Content Found';
