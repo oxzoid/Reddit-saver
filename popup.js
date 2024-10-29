@@ -1,22 +1,3 @@
-document.getElementById('saveButton').addEventListener('click', () => {
-  // Send a message to the content script to get the post data
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    chrome.scripting.executeScript(
-      {
-        target: { tabId: tabs[0].id },
-        func: getPostData,
-      },
-      (results) => {
-        if (results && results[0] && results[0].result) {
-          saveNote(results[0].result);
-        } else {
-          alert('Failed to retrieve post data.');
-        }
-      }
-    );
-  });
-});
-
 let allNotes = []; // Store all notes globally
 
 // Utility function to escape special characters for regex
@@ -32,9 +13,15 @@ function highlightText(text, query = '') {
 }
 
 // Function to save note to Chrome storage
-function saveNote(note) {
-  // Retrieve existing notes from storage
-  chrome.storage.local.get({ notes: [] }, (data) => {
+async function saveNote(note) {
+  try {
+    // Retrieve existing notes from storage
+    let data = await chrome.storage.local.get({ notes: [] });
+
+    // Ensure data.notes is an array
+    if (!Array.isArray(data.notes)) {
+      data.notes = [];
+    }
     allNotes = data.notes;
 
     // Check for duplicates based on the note's link
@@ -51,16 +38,23 @@ function saveNote(note) {
     allNotes.push(note);
 
     // Save the updated notes back to storage
-    chrome.storage.local.set({ notes: allNotes }, () => {
-      console.log("Note saved successfully!");
-      displayNotes();
-    });
-  });
+    await chrome.storage.local.set({ notes: allNotes });
+    console.log("Note saved successfully!");
+    displayNotes();
+  } catch (error) {
+    console.error('Error saving note:', error);
+  }
 }
 
 // Function to display notes with optional filtering
 function displayNotes(filteredNotes = null, query = '') {
   const notesToDisplay = filteredNotes !== null ? filteredNotes : allNotes;
+
+  if (!Array.isArray(notesToDisplay)) {
+    console.error('notesToDisplay is not an array:', notesToDisplay);
+    return;
+  }
+
   const notesDiv = document.getElementById('notes');
   notesDiv.innerHTML = '';
   notesToDisplay.forEach((note) => {
@@ -97,57 +91,117 @@ function displayNotes(filteredNotes = null, query = '') {
 }
 
 // Function to load notes from storage
-function loadNotes() {
-  chrome.storage.local.get({ notes: [] }, (data) => {
+async function loadNotes() {
+  try {
+    let data = await chrome.storage.local.get({ notes: [] });
+    if (!Array.isArray(data.notes)) {
+      console.error('data.notes is not an array, resetting to empty array.');
+      data.notes = [];
+      await chrome.storage.local.set({ notes: data.notes });
+    }
     allNotes = data.notes;
     displayNotes();
-  });
+  } catch (error) {
+    console.error('Error loading notes:', error);
+  }
 }
 
-// Add event listener for deleteAllButton
+// Event listener for saveButton
+document.getElementById('saveButton').addEventListener('click', () => {
+  // Send a message to the content script to get the post data
+  chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+    try {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: tabs[0].id },
+        func: getPostData,
+      });
+      if (results && results[0] && results[0].result) {
+        saveNote(results[0].result);
+      } else {
+        alert('Failed to retrieve post data.');
+      }
+    } catch (error) {
+      console.error('Error executing script:', error);
+    }
+  });
+});
+
+// Event listener for deleteAllButton
 document.getElementById('deleteAllButton').addEventListener('click', () => {
+  // Show the custom confirmation modal
+  document.getElementById('confirmationModal').style.display = 'block';
+});
+
+// Event listener for the confirm delete button
+// Event listener for the confirm delete button
+document.getElementById('confirmDeleteButton').addEventListener('click', async () => {
+  try {
+    // Clear all notes
     allNotes = [];
-    chrome.storage.local.set({ notes: {} }, () => {
-      console.log("All notes have been deleted.");
-      loadNotes();
-      displayNotes();
-    });
+    await chrome.storage.local.set({ notes: allNotes });
+    console.log("All notes have been deleted.");
+
+    // Verify storage after deletion
+    let data = await chrome.storage.local.get('notes');
+    console.log("Notes in storage after deletion:", data.notes);
+
+    displayNotes();
+    // Hide the modal
+    document.getElementById('confirmationModal').style.display = 'none';
+  } catch (error) {
+    console.error('Error deleting all notes:', error);
   }
-);
+});
+
+// Event listener for the cancel delete button
+document.getElementById('cancelDeleteButton').addEventListener('click', () => {
+  // Hide the modal
+  document.getElementById('confirmationModal').style.display = 'none';
+});
+
+// Search Input Event Listener
+document.getElementById('searchInput').addEventListener('input', debounce(handleSearchInput, 300));
+
+// Load notes when popup opens
+document.addEventListener('DOMContentLoaded', loadNotes);
 
 // Debounce function to limit search input processing
 function debounce(func, delay) {
   let timeout;
-  return function(...args) {
+  return function (...args) {
     clearTimeout(timeout);
     timeout = setTimeout(() => func.apply(this, args), delay);
   };
 }
 
 // Handle search input
-const handleSearchInput = () => {
+function handleSearchInput() {
   const query = document.getElementById('searchInput').value.toLowerCase();
-  const filteredNotes = allNotes.filter(note => {
+  const filteredNotes = allNotes.filter((note) => {
     return note.title.toLowerCase().includes(query) || note.content.toLowerCase().includes(query);
   });
   displayNotes(filteredNotes, query);
-};
-
-document.getElementById('searchInput').addEventListener('input', debounce(handleSearchInput, 300));
+}
 
 // Function to delete a note by unique ID
-function deleteNoteById(noteId) {
-  allNotes = allNotes.filter(note => note.id !== noteId);
-  chrome.storage.local.set({ notes: allNotes }, () => {
+async function deleteNoteById(noteId) {
+  try {
+    allNotes = allNotes.filter((note) => note.id !== noteId);
+    await chrome.storage.local.set({ notes: allNotes });
     displayNotes();
-  });
+  } catch (error) {
+    console.error('Error deleting note:', error);
+  }
 }
 
 // Function to open note in new window (like Sticky Notes)
 function openNoteInWindow(note) {
-  const url = chrome.runtime.getURL('note.html') +
-    `?title=${encodeURIComponent(note.title)}&content=${encodeURIComponent(note.content)}&link=${encodeURIComponent(note.link)}&id=${note.id}`;
-  
+  const url =
+    chrome.runtime.getURL('note.html') +
+    `?title=${encodeURIComponent(note.title)}&content=${encodeURIComponent(
+      note.content
+    )}&link=${encodeURIComponent(note.link)}&id=${note.id}`;
+
   chrome.windows.create({
     url: url,
     type: 'popup',
@@ -155,9 +209,6 @@ function openNoteInWindow(note) {
     height: 600,
   });
 }
-
-// Load notes when popup opens
-document.addEventListener('DOMContentLoaded', loadNotes);
 
 // Content script function to get post data from Reddit
 function getPostData() {
@@ -167,6 +218,8 @@ function getPostData() {
   const title = titleElement ? titleElement.innerText : 'No Title Found';
   const content = contentElement ? contentElement.innerText : 'No Content Found';
   const link = window.location.href;
-  if(link.includes("reddit.com")){
-  return { title, content, link };}
+
+  if (link.includes('reddit.com')) {
+    return { title, content, link };
+  }
 }
