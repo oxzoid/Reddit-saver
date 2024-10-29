@@ -19,12 +19,42 @@ document.getElementById('saveButton').addEventListener('click', () => {
 
 let allNotes = []; // Store all notes globally
 
+// Utility function to escape special characters for regex
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Function to highlight matching text
+function highlightText(text, query = '') {
+  if (!query) return text;
+  const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
+  return text.replace(regex, '<mark>$1</mark>');
+}
+
 // Function to save note to Chrome storage
 function saveNote(note) {
-  note.id = Date.now(); // Assign a unique ID based on timestamp
-  allNotes.push(note);
-  chrome.storage.local.set({ notes: allNotes }, () => {
-    displayNotes();
+  // Retrieve existing notes from storage
+  chrome.storage.local.get({ notes: [] }, (data) => {
+    allNotes = data.notes;
+
+    // Check for duplicates based on the note's link
+    const isDuplicate = allNotes.some(existingNote => existingNote.link === note.link);
+    if (isDuplicate) {
+      alert('This note already exists.');
+      return;
+    }
+
+    // Assign a unique ID to the note
+    note.id = Date.now();
+
+    // Add the new note to the existing notes
+    allNotes.push(note);
+
+    // Save the updated notes back to storage
+    chrome.storage.local.set({ notes: allNotes }, () => {
+      console.log("Note saved successfully!");
+      displayNotes();
+    });
   });
 }
 
@@ -36,23 +66,12 @@ function displayNotes(filteredNotes = null, query = '') {
   notesToDisplay.forEach((note) => {
     const noteDiv = document.createElement('div');
     noteDiv.className = 'note';
-    function escapeRegExp(string) {
-      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escape special characters
-    }
-    
-    // Highlight matching text
-    // Highlight matching text
-const highlightText = (text) => {
-  if (!query) return text;
-  const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
-  return text.replace(regex, '<mark>$1</mark>');
-};
 
     // Note content container
     const noteContentDiv = document.createElement('div');
     noteContentDiv.className = 'noteContent';
     noteContentDiv.innerHTML = `<div>
-      <strong>${highlightText(note.title)}</strong>
+      <strong>${highlightText(note.title, query)}</strong>
       </div><br>
       <a href="${note.link}" target="_blank">Go to Post</a>
     `;
@@ -66,7 +85,7 @@ const highlightText = (text) => {
     // Create delete button (minus sign)
     const deleteButton = document.createElement('button');
     deleteButton.className = 'deleteButton';
-    deleteButton.textContent = '-'; // Unicode minus sign
+    deleteButton.textContent = '-';
     deleteButton.addEventListener('click', () => {
       deleteNoteById(note.id);
     });
@@ -84,6 +103,17 @@ function loadNotes() {
     displayNotes();
   });
 }
+
+// Add event listener for deleteAllButton
+document.getElementById('deleteAllButton').addEventListener('click', () => {
+    allNotes = [];
+    chrome.storage.local.set({ notes: {} }, () => {
+      console.log("All notes have been deleted.");
+      loadNotes();
+      displayNotes();
+    });
+  }
+);
 
 // Debounce function to limit search input processing
 function debounce(func, delay) {
@@ -132,12 +162,11 @@ document.addEventListener('DOMContentLoaded', loadNotes);
 // Content script function to get post data from Reddit
 function getPostData() {
   const titleElement = document.querySelector('h1');
-  const contentElement = document.querySelector('[slot = "text-body"]');
+  const contentElement = document.querySelector('[data-test-id="post-content"]');
 
   const title = titleElement ? titleElement.innerText : 'No Title Found';
   const content = contentElement ? contentElement.innerText : 'No Content Found';
   const link = window.location.href;
-
   if(link.includes("reddit.com")){
   return { title, content, link };}
 }
